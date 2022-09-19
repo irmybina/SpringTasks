@@ -7,6 +7,7 @@ import com.edu.ulab.app.mapper.BookMapper;
 import com.edu.ulab.app.mapper.UserMapper;
 import com.edu.ulab.app.service.BookService;
 import com.edu.ulab.app.service.UserService;
+import com.edu.ulab.app.storage.Storage;
 import com.edu.ulab.app.web.request.UserBookRequest;
 import com.edu.ulab.app.web.response.UserBookResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +50,7 @@ public class UserDataFacade {
                 .peek(mappedBookDto -> log.info("mapped book: {}", mappedBookDto))
                 .map(bookService::createBook)
                 .peek(createdBook -> log.info("Created book: {}", createdBook))
+                .peek(book -> bookService.createBook(book))
                 .map(BookDto::getId)
                 .toList();
         log.info("Collected book ids: {}", bookIdList);
@@ -60,13 +62,38 @@ public class UserDataFacade {
     }
 
     public UserBookResponse updateUserWithBooks(UserBookRequest userBookRequest) {
-        return null;
+        UserDto userDto = userMapper.userRequestToUserDto(userBookRequest.getUserRequest());
+        userService.updateUser(userDto);
+
+        List<Long> bookIdList = userBookRequest.getBookRequests()
+                .stream()
+                .map(bookMapper::bookRequestToBookDto)
+                .peek(book -> bookService.updateBook(book))
+                .map(BookDto::getId)
+                .toList();
+
+        return UserBookResponse.builder()
+                .userId(userDto.getId())
+                .booksIdList(bookIdList)
+                .build();
     }
 
     public UserBookResponse getUserWithBooks(Long userId) {
-        return null;
+        UserDto userDto = userService.getUserById(userId);
+
+        if (userDto != null) return UserBookResponse.builder()
+                .userId(userDto.getId())
+                .booksIdList(bookService.getBooksByUserId(userId))
+                .build();
+        else return null;
     }
 
     public void deleteUserWithBooks(Long userId) {
+        userService.deleteUserById(userId);
+
+        List<Long> books = bookService.getBooksByUserId(userId);
+        books.stream()
+                .filter(Objects::nonNull)
+                .peek(book -> bookService.deleteBookById(book));
     }
 }
