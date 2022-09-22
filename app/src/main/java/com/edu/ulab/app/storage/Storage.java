@@ -5,36 +5,44 @@ import com.edu.ulab.app.entity.UserEntity;
 
 import java.awt.print.Book;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Storage {
 
-    private static List<UserEntity> users = new ArrayList<>();
-    private static List<BookEntity> books = new ArrayList<>();
-    public static void setUsers(List<UserEntity> users) {
+    private static Map<Long, UserEntity> users = new HashMap<>();
+    private static Map<Long, BookEntity> books = new HashMap<>();
+    public static void setUsers(Map<Long, UserEntity> users) {
         Storage.users = users;
     }
 
-    public static void setBooks(List<BookEntity> books) {
+    public static void setBooks(Map<Long, BookEntity> books) {
         Storage.books = books;
     }
 
-    public static List<UserEntity> getUsers(){
+    public static Map<Long, UserEntity> getUsers(){
         return users;
     }
 
-    public static List<BookEntity> getBooks(){
+    public static Map<Long, BookEntity> getBooks(){
         return books;
     }
 
-    public static void addUser(UserEntity userEntity){
-        users.add(userEntity);
+    public static void addUser(Long id, UserEntity userEntity){
+        users.put(id, userEntity);
+    }
+    public static void removeUser(Long id){
+        users.remove(id);
     }
 
-    public static void addBook(BookEntity bookEntity){
-        books.add(bookEntity);
+    public static void addBook(Long id, BookEntity bookEntity){
+        books.put(id, bookEntity);
     }
 
+    public static void removeBook(Long id){
+        books.remove(id);
+    }
     //todo создать хранилище в котором будут содержаться данные
     // сделать абстракции через которые можно будет производить операции с хранилищем
     // продумать логику поиска и сохранения
