@@ -2,6 +2,7 @@ package com.edu.ulab.app.service.impl;
 
 import com.edu.ulab.app.dto.UserDto;
 import com.edu.ulab.app.entity.UserEntity;
+import com.edu.ulab.app.exception.NotFoundException;
 import com.edu.ulab.app.mapper.UserMapper;
 import com.edu.ulab.app.service.UserService;
 import com.edu.ulab.app.storage.Storage;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -25,46 +27,48 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto createUser(UserDto userDto) {
         userDto.setId(++userId);
-
-        List<UserEntity> userEntities = Storage.getUsers();
-        userEntities.add(userMapper.userDtoToUserEntity(userDto));
-        Storage.setUsers(userEntities);
-        // сгенерировать идентификатор
-        // создать пользователя
-        // вернуть сохраненного пользователя со всеми необходимыми полями id
-
+        log.info("Set user id: {}", userId);
+        Storage.addUser(userDto.getId(), userMapper.userDtoToUserEntity(userDto));
+        log.info("User added to Storage: {}", userDto);
         return userDto;
     }
 
     @Override
     public UserDto updateUser(UserDto userDto) {
-        Storage.getUsers()
-                .stream()
-                .filter(Objects::nonNull)
-                .filter(user -> user.getId() == userDto.getId())
-                .peek(user -> user.setFullName(userDto.getFullName()))
-                .peek(user -> user.setTitle(userDto.getTitle()))
-                .peek(user -> user.setAge(userDto.getAge()));
+        if (Storage.getUsers().containsKey(userDto.getId())){
+            Storage.removeUser(userDto.getId());
+            log.info("last user version deleted: {}", userDto.getId());
+            Storage.addUser(userDto.getId(), userMapper.userDtoToUserEntity(userDto));
+            log.info("New user added: {}", userDto);
+        }
+        else {
+            throw new NotFoundException("user was not found");
+        }
+
         return userDto;
     }
 
     @Override
     public UserDto getUserById(Long id) {
-        UserEntity user = Storage.getUsers()
-                .stream()
-                .filter(Objects::nonNull)
-                .filter(u -> u.getId() == id)
-                .findAny().orElse(null);
-        return userMapper.userEntityToUserDto(user);
+        if (Storage.getUsers().containsKey(id)) {
+            UserDto userDto = userMapper.userEntityToUserDto(Storage.getUsers().get(id));
+            userDto.setId(id);
+            log.info("Found user: {}", userDto);
+            return userDto;
+        }
+        else {
+            throw new NotFoundException("user was not found");
+        }
     }
 
     @Override
     public void deleteUserById(Long id) {
-        List<UserEntity> users = Storage.getUsers().stream()
-                .filter(Objects::nonNull)
-                .filter(user -> user.getId() != id)
-                .toList();
-        Storage.setUsers(users);
-
+        if (Storage.getUsers().containsKey(id)) {
+            Storage.removeUser(id);
+            log.info("User deleted: {}", id);
+        }
+        else {
+            throw new NotFoundException("user was not found");
+        }
     }
 }

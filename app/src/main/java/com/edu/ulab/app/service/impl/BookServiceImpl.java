@@ -2,13 +2,16 @@ package com.edu.ulab.app.service.impl;
 
 import com.edu.ulab.app.dto.BookDto;
 import com.edu.ulab.app.entity.BookEntity;
+import com.edu.ulab.app.exception.NotFoundException;
 import com.edu.ulab.app.mapper.BookMapper;
 import com.edu.ulab.app.service.BookService;
 import com.edu.ulab.app.storage.Storage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -24,56 +27,71 @@ public class BookServiceImpl implements BookService {
     @Override
     public BookDto createBook(BookDto bookDto) {
         bookDto.setId(++bookId);
+        log.info("Set book id: {}", bookId);
 
-        List<BookEntity> bookEntities = Storage.getBooks();
-        bookEntities.add(bookMapper.bookDtoToBookEntity(bookDto));
-        Storage.setBooks(bookEntities);
+
+        Storage.addBook(bookDto.getId(), bookMapper.bookDtoToBookEntity(bookDto));
+        log.info("Book added to Storage: {}", bookDto);
 
         return bookDto;
     }
 
     @Override
     public BookDto updateBook(BookDto bookDto) {
-        List<BookEntity> books = Storage.getBooks().stream()
-                .filter(Objects::nonNull)
-                .filter(book -> book.getId() != bookDto.getId())
-                .toList();
+        if (Storage.getBooks().containsKey(bookDto.getId())){
+            Storage.removeBook(bookDto.getId());
+            log.info("last book version deleted: {}", bookDto.getId());
+            Storage.addBook(bookDto.getId(), bookMapper.bookDtoToBookEntity(bookDto));
+            log.info("New book added: {}", bookDto.getId());
+        }
+        else {
+            throw new NotFoundException("book was not found");
+        }
 
-        books.add(bookMapper.bookDtoToBookEntity(bookDto));
-        Storage.setBooks(books);
         return bookDto;
     }
 
     @Override
     public BookDto getBookById(Long id) {
-        List<BookEntity> books = Storage.getBooks();
-        BookEntity bookEntity = books.stream()
-                .filter(Objects::nonNull)
-                .filter(book -> book.getId() == id)
-                .findAny().orElse(null);
+        if (Storage.getBooks().containsKey(id)){
+            BookDto bookDto = bookMapper.bookEntityToBookDto(Storage.getBooks().get(id));
+            bookDto.setId(id);
+            log.info("found book: {}", bookDto);
+            return bookDto;
+        }
 
-        return bookMapper.bookEntityToBookDto(bookEntity);
+        else {
+            throw new NotFoundException("book was not found");
+        }
     }
 
     @Override
     public List<Long> getBooksByUserId(Long userId){
-        List<Long> books = Storage.getBooks().stream()
-                .filter(Objects::nonNull)
-                .filter(book -> book.getUserId() == userId)
-                .map(book -> book.getId())
-                .toList();
 
+        List<Long> books = Storage.getBooks()
+                .entrySet()
+                .stream()
+                .filter(book -> book.getValue().getUserId()==userId)
+                .map(Map.Entry::getKey)
+                .toList();
+        log.info("Collected book ids: {}", books);
+        if (!books.isEmpty()){
         return books;
+        }
+        else {
+            throw new NotFoundException("user was not found");
+        }
+
     }
 
     @Override
     public void deleteBookById(Long id) {
-        List<BookEntity> books = Storage.getBooks();
-        List<BookEntity> booksToEdit = books.stream()
-                .filter(Objects::nonNull)
-                .filter(book -> book.getId() != id)
-                .toList();
-        Storage.setBooks(booksToEdit);
-
+        if (Storage.getBooks().containsKey(id)) {
+            Storage.removeBook(id);
+            log.info("Book deleted: {}", id);
+        }
+        else {
+            throw new NotFoundException("user was not found");
+        }
     }
 }

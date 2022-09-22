@@ -62,8 +62,11 @@ public class UserDataFacade {
     }
 
     public UserBookResponse updateUserWithBooks(UserBookRequest userBookRequest) {
+        log.info("Got user book update request: {}", userBookRequest);
         UserDto userDto = userMapper.userRequestToUserDto(userBookRequest.getUserRequest());
-        userService.updateUser(userDto);
+        log.info("Mapped user request: {}", userDto);
+        UserDto updatedUser = userService.updateUser(userDto);
+        log.info("Updated user: {}", updatedUser);
 
         List<Long> bookIdList = userBookRequest.getBookRequests()
                 .stream()
@@ -71,29 +74,43 @@ public class UserDataFacade {
                 .peek(book -> bookService.updateBook(book))
                 .map(BookDto::getId)
                 .toList();
+        log.info("Collected book ids: {}", bookIdList);
 
         return UserBookResponse.builder()
-                .userId(userDto.getId())
+                .userId(updatedUser.getId())
                 .booksIdList(bookIdList)
                 .build();
     }
 
     public UserBookResponse getUserWithBooks(Long userId) {
+        log.info("Got get user with books by user id request: {}", userId);
         UserDto userDto = userService.getUserById(userId);
+        log.info("Got user: {}", userDto);
+
+        List<Long> bookIdList = bookService.getBooksByUserId(userId);
+        log.info("Collected book ids: {}", bookIdList);
 
         if (userDto != null) return UserBookResponse.builder()
                 .userId(userDto.getId())
-                .booksIdList(bookService.getBooksByUserId(userId))
+                .booksIdList(bookIdList)
                 .build();
         else return null;
     }
 
     public void deleteUserWithBooks(Long userId) {
+        log.info("Got delete user by id request: {}", userId);
+
         userService.deleteUserById(userId);
+        log.info("user deleted: {}", userId);
+
 
         List<Long> books = bookService.getBooksByUserId(userId);
+        log.info("Collected book ids: {}", books);
+
         books.stream()
                 .filter(Objects::nonNull)
                 .peek(book -> bookService.deleteBookById(book));
+        log.info("Deleted books by user id: {}", userId);
+
     }
 }
